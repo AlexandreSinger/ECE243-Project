@@ -14,6 +14,14 @@ typedef struct Player {
 	int dx;
 } Player;
 
+typedef struct Ball {
+	int x;
+	int y;
+	int width;
+	int dx;
+	int dy;
+} Ball;
+
 bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 				  		 {1,1,0,1,0,1,1},
 				  		 {1,1,0,1,0,1,1},
@@ -26,8 +34,10 @@ bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
 
 void draw_player(const Player *player, short int color);
-void draw_map(bool (*map)[COLS]);
 void update_player(Player *player);
+void draw_ball(const Ball *ball, short int color);
+void update_ball(Ball *ball);
+void draw_map(bool (*map)[COLS]);
 void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
@@ -39,6 +49,9 @@ int main(void)
 	// create player at the bottom of the screen
 	Player player = {159, 235, 40, 9, -2};
 	Player oldPlayer = player;	// old player used to erase from background
+	
+	Ball ball = {159, 200, 7, 1, 1};
+	Ball oldBall = ball;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
@@ -48,25 +61,30 @@ int main(void)
     /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
     clear_screen(); // pixel_buffer_start points to the pixel buffer
+	draw_map(map1);
     /* set back pixel buffer to start of SDRAM memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen();
 	
+	draw_map(map1);
+	
     while (1)
     {
         // erase the old player
 		draw_player(&oldPlayer, 0);
+		draw_ball(&oldBall, 0);
 		
 		// update the player
 		oldPlayer = player;
 		update_player(&player);
-
-		// draw map
-		draw_map(map1);
+		
+		oldBall = ball;
+		update_ball(&ball);
 
         // draw player
 		draw_player(&player, 0xFFFF);
+		draw_ball(&ball, 0xFFFF);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
@@ -85,6 +103,27 @@ void draw_map(bool (*map)[COLS]) {
 				}
 			}
 		}
+	}
+}
+
+void draw_ball(const Ball *ball, short int color) {
+	for (int i = ball->x - ball->width/2; i < ball->x + ball->width/2; i++) {
+		for (int j = ball->y - ball->width/2; j < ball->y + ball->width/2; j++) {
+			plot_pixel(i, j, color);
+		}
+	}
+}
+
+void update_ball(Ball *ball) {
+	ball->x = ball->x + ball->dx;
+	ball->y = ball->y + ball->dy;
+	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 > 320) {
+		ball->x = ball->x - 2*ball->dx;
+		ball->dx = -1*ball->dx;
+	}
+	if (ball->y - ball->width/2 < 0 || ball->y + ball->width/2 > 240) {
+		ball->y = ball->y - 2* ball->dy;
+		ball->dy = -1*ball->dy;
 	}
 }
 
