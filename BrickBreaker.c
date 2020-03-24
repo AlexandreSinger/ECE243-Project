@@ -1,8 +1,11 @@
 #include <stdlib.h>
+#include <stdbool.h>
+
+#define ROWS 8
+#define COLS 7
 
 volatile int pixel_buffer_start; // global variable
 
-// initialize player
 typedef struct Player {
 	int x;
 	int y;
@@ -11,7 +14,19 @@ typedef struct Player {
 	int dx;
 } Player;
 
+bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
+				  		 {1,1,0,1,0,1,1},
+				  		 {1,1,0,1,0,1,1},
+				  		 {1,1,1,1,1,1,1},
+						 {1,0,1,1,1,0,1},
+				  		 {1,0,0,0,0,0,1},
+				  		 {1,1,0,0,0,1,1},
+				  		 {1,1,1,1,1,1,1}};
+
+short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
+
 void draw_player(const Player *player, short int color);
+void draw_map(bool (*map)[COLS]);
 void update_player(Player *player);
 void wait_for_vsync();
 void clear_screen();
@@ -47,12 +62,30 @@ int main(void)
 		oldPlayer = player;
 		update_player(&player);
 
+		// draw map
+		draw_map(map1);
+
         // draw player
 		draw_player(&player, 0xFFFF);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
+}
+
+void draw_map(bool (*map)[COLS]) {
+	for (int i = 0; i < ROWS; i++) {
+		for (int j = 0; j < COLS; j++) {
+			if (map[i][j]) {
+				// draw the brick
+				for (int x = 45*j+5; x < 45*j+45; x++) {
+					for (int y = 15*i+5; y < 15*i+15; y++) {
+						plot_pixel(x,y,rowColors[i/2]);
+					}
+				}
+			}
+		}
+	}
 }
 
 void draw_player(const Player *player, short int color) {
