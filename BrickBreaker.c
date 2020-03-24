@@ -3,16 +3,16 @@
 volatile int pixel_buffer_start; // global variable
 
 // initialize player
-struct Player {
+typedef struct Player {
 	int x;
 	int y;
 	int width;
 	int height;
 	int dx;
-};
+} Player;
 
-void draw_player(struct Player player, short int color);
-void update_player(struct Player *player);
+void draw_player(const Player *player, short int color);
+void update_player(Player *player);
 void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
@@ -22,8 +22,8 @@ int main(void)
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 
 	// create player at the bottom of the screen
-	struct Player player = {159, 235, 40, 9, -2};
-	struct Player oldPlayer = player;	// old player used to erase from background
+	Player player = {159, 235, 40, 9, -2};
+	Player oldPlayer = player;	// old player used to erase from background
 
     /* set front pixel buffer to start of FPGA On-chip memory */
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
@@ -41,32 +41,32 @@ int main(void)
     while (1)
     {
         // erase the old player
-		draw_player(oldPlayer, 0);
+		draw_player(&oldPlayer, 0);
 		
 		// update the player
 		oldPlayer = player;
 		update_player(&player);
 
         // draw player
-		draw_player(player, 0xFFFF);
+		draw_player(&player, 0xFFFF);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
 }
 
-void draw_player(struct Player player, short int color) {
-	for (int i = player.x - player.width/2; i < player.x + player.width/2; i++) {
-		for (int j = player.y - player.height/2; j < player.y + player.height/2; j++) {
+void draw_player(const Player *player, short int color) {
+	for (int i = player->x - player->width/2; i < player->x + player->width/2; i++) {
+		for (int j = player->y - player->height/2; j < player->y + player->height/2; j++) {
 			plot_pixel(i, j, color);
 		}
 	}
 }
 
-void update_player(struct Player *player) {
-	(*player).x = (*player).x + (*player).dx;
-	if ((*player).x - (*player).width/2 < 0 || (*player).x + (*player).width/2 > 320) {
-		(*player).x = (*player).x - (*player).dx;
+void update_player(Player *player) {
+	player->x = player->x + player->dx;
+	if (player->x - player->width/2 < 0 || player->x + player->width/2 > 320) {
+		player->x = player->x - player->dx;
 	}
 }
 
