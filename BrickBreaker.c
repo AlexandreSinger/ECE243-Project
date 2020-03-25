@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define ROWS 8
 #define COLS 7
@@ -47,6 +48,8 @@ void break_brick(int row, int col, bool (*map)[COLS]);
 void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
+short int get_pixel(int x, int y);
+void draw_char(int x, int y, char letter);
 
 int main(void)
 {
@@ -60,16 +63,14 @@ int main(void)
 	Ball oldBall = ball;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
-    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
-                                        // back buffer
+    *(pixel_ctrl_ptr + 1) = 0xC0000000;
     /* now, swap the front/back buffers, to set the front buffer location */
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
     clear_screen(); // pixel_buffer_start points to the pixel buffer
 	draw_map(map1);
-    /* set back pixel buffer to start of SDRAM memory */
-    *(pixel_ctrl_ptr + 1) = 0xC0000000;
+    *(pixel_ctrl_ptr + 1) = 0xC8000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen();
 	
@@ -129,7 +130,7 @@ void draw_ball(const Ball *ball, short int color) {
 void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 	ball->x = ball->x + ball->dx;
 	ball->y = ball->y + ball->dy;
-
+	
 	// Check for wall collisions
 	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 > 320) {
 		ball->x = ball->x - 2*ball->dx;
@@ -149,6 +150,7 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 			if (player->dx != 0) {
 				ball->dx = player->dx;
 			}
+			return;
 	}
 
 	// Check for brick collisions
@@ -226,6 +228,7 @@ void wait_for_vsync() {
 
 // code for clearing the screen
 void clear_screen() {
+	draw_string(2,2,"Score: You suck             Lives: you have none    High score: Hah you wish");
 	for (int i = 0; i < 320; i++) {
 		for (int j = 0; j < 240; j++) {
 			plot_pixel(i, j, 0);
@@ -236,4 +239,19 @@ void clear_screen() {
 // code for plotting a point on the buffer
 void plot_pixel(int x, int y, short int line_color) {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
+}
+
+short int get_pixel(int x, int y) {
+	return *(short int *)(*(int *)0xFF203020 + (y << 10) + (x << 1))&0x0000FFFF;
+}
+
+void draw_string(int x, int y, char str[]) {
+	for (int i = 0; i < strlen(str); i++) {
+		draw_char(x+i, y, str[i]);
+	}
+}
+
+void draw_char(int x, int y, char letter) {
+	volatile int charBuffer = 0xc9000000;
+	*(char *)(charBuffer + (y << 7) + x) = letter;
 }
