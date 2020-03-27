@@ -49,6 +49,7 @@ void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
 short int get_pixel(int x, int y);
+void draw_string(int x, int y, char str[]);
 void draw_char(int x, int y, char letter);
 
 int main(void)
@@ -56,7 +57,7 @@ int main(void)
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 
 	// create player at the bottom of the screen
-	Player player = {159, 235, 40, 9, 0};
+	Player player = {159, 235, 40, 9, -1};
 	Player oldPlayer = player;	// old player used to erase from background
 	
 	Ball ball = {159, 200, 7, 0, 2};
@@ -73,7 +74,6 @@ int main(void)
     *(pixel_ctrl_ptr + 1) = 0xC8000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen();
-	
 	draw_map(map1);
 	
     while (1)
@@ -132,11 +132,11 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 	ball->y = ball->y + ball->dy;
 	
 	// Check for wall collisions
-	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 > 320) {
+	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 >= 320) {
 		ball->x = ball->x - 2*ball->dx;
 		ball->dx = -1*ball->dx;
 		return;
-	} else if (ball->y - ball->width/2 < 15 || ball->y + ball->width/2 > 240) {
+	} else if (ball->y - ball->width/2 < 15 || ball->y + ball->width/2 >= 240) {
 		ball->y = ball->y - 2* ball->dy;
 		ball->dy = -1*ball->dy;
 		return;
@@ -153,14 +153,46 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 			return;
 	}
 
-	// Check for brick collisions
-	if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2, map) ||
-		check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2, map) ||
-		check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2, map) ||
-		check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2, map)) {
+	//Check each corner for brick collisions
+	if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2, map)) {
+		if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2 + 2, map)) {
+			ball->x = ball->x - 2*ball->dx;
+			ball->dx = -1*ball->dx;
+		} else {
 			ball->y = ball->y - 2* ball->dy;
 			ball->dy = -1*ball->dy;
-			return;
+		}
+		return;
+	}
+	if (check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2, map)) {
+		if (check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2 + 2, map)) {
+			ball->x = ball->x - 2*ball->dx;
+			ball->dx = -1*ball->dx;
+		} else {
+			ball->y = ball->y - 2* ball->dy;
+			ball->dy = -1*ball->dy;
+		}
+		return;
+	}
+	if (check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2, map)) {
+		if (check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2 - 2, map)) {
+			ball->x = ball->x - 2*ball->dx;
+			ball->dx = -1*ball->dx;
+		} else {
+			ball->y = ball->y - 2* ball->dy;
+			ball->dy = -1*ball->dy;
+		}
+		return;
+	}
+	if (check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2, map)) {
+		if (check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2 - 2, map)) {
+			ball->x = ball->x - 2*ball->dx;
+			ball->dx = -1*ball->dx;
+		} else {
+			ball->y = ball->y - 2* ball->dy;
+			ball->dy = -1*ball->dy;
+		}
+		return;
 	}
 }
 
@@ -174,18 +206,15 @@ bool check_for_player_collision(int x, int y, const Player *player) {
 }
 
 bool check_for_brick_collision(int x, int y, bool (*map)[COLS]) {
-	int rowIndex = y/15 - 1;
-	int colIndex = x/45;
-	if (rowIndex < ROWS && colIndex < COLS) {
-		if(map[rowIndex][colIndex]) {
-			if (x-colIndex*45 > 5 && y-(rowIndex+1)*15>5) {
-				break_brick(rowIndex, colIndex, map);
-				brickBroke = true;
-				brokenBrick[0] = rowIndex;
-				brokenBrick[1] = colIndex;
-				return true;
-			}
-		}
+	short int collidingPixel = get_pixel(x,y);
+	if (collidingPixel != (short int)0xFFFF && collidingPixel != (short int)0x0) {
+		int rowIndex = y/15 - 1;
+		int colIndex = x/45;
+		break_brick(rowIndex, colIndex, map);
+		brickBroke = true;
+		brokenBrick[0] = rowIndex;
+		brokenBrick[1] = colIndex;
+		return true;
 	}
 	return false;
 }
@@ -211,12 +240,13 @@ void update_player(Player *player) {
 	player->x = player->x + player->dx;
 	if (player->x - player->width/2 < 0 || player->x + player->width/2 > 320) {
 		player->x = player->x - player->dx;
+		player->dx = 0;
 	}
 }
 
 // code for waiting for the vertical sync
 void wait_for_vsync() {
-	volatile int *pixel_ctrl_ptr = 0xFF203020; // pixel controller
+	volatile int *pixel_ctrl_ptr = (int*)0xFF203020; // pixel controller
 	register int status;
 	
 	*pixel_ctrl_ptr = 1; // start the synchronization process
