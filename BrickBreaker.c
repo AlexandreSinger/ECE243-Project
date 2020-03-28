@@ -30,7 +30,7 @@ bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 						 {1,0,1,1,1,0,1},
 				  		 {1,0,0,0,0,0,1},
 				  		 {1,1,0,0,0,1,1},
-				  		 {1,1,1,1,1,1,1}};
+				  		 {1,1,0,1,1,1,1}};
 
 short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
 
@@ -60,7 +60,7 @@ int main(void)
 	Player player = {159, 235, 40, 9, -1};
 	Player oldPlayer = player;	// old player used to erase from background
 	
-	Ball ball = {159, 200, 7, 0, 2};
+	Ball ball = {159, 200, 7, 0, 3};
 	Ball oldBall = ball;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
@@ -96,7 +96,7 @@ int main(void)
 		update_ball(&ball, &player, map1);
 
         // draw player
-		draw_player(&player, 0xFFFF);
+		draw_player(&player, 0xFFDF);
 		draw_ball(&ball, 0xFFFF);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
@@ -155,7 +155,7 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 
 	//Check each corner for brick collisions
 	if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2, map)) {
-		if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2 + 2, map)) {
+		if (check_for_brick_collision(ball->x - ball->width/2, ball->y - ball->width/2 - ball->dy, map)) {
 			ball->x = ball->x - 2*ball->dx;
 			ball->dx = -1*ball->dx;
 		} else {
@@ -165,7 +165,7 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 		return;
 	}
 	if (check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2, map)) {
-		if (check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2 + 2, map)) {
+		if (check_for_brick_collision(ball->x + ball->width/2, ball->y - ball->width/2 - ball->dy, map)) {
 			ball->x = ball->x - 2*ball->dx;
 			ball->dx = -1*ball->dx;
 		} else {
@@ -175,7 +175,7 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 		return;
 	}
 	if (check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2, map)) {
-		if (check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2 - 2, map)) {
+		if (check_for_brick_collision(ball->x - ball->width/2, ball->y + ball->width/2 - ball->dy, map)) {
 			ball->x = ball->x - 2*ball->dx;
 			ball->dx = -1*ball->dx;
 		} else {
@@ -185,7 +185,7 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 		return;
 	}
 	if (check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2, map)) {
-		if (check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2 - 2, map)) {
+		if (check_for_brick_collision(ball->x + ball->width/2, ball->y + ball->width/2 - ball->dy, map)) {
 			ball->x = ball->x - 2*ball->dx;
 			ball->dx = -1*ball->dx;
 		} else {
@@ -197,12 +197,16 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 }
 
 bool check_for_player_collision(int x, int y, const Player *player) {
-	if (y > 240-player->height) {
-		if (x > player->x - player->width/2 && x < player->x + player->width/2) {
-			return true;
-		}
+	if (get_pixel(x,y) == (short int)0xFFDF) {
+		return true;
 	}
 	return false;
+	// if (y > 240-player->height) {
+	// 	if (x > player->x - player->width/2 && x < player->x + player->width/2) {
+	// 		return true;
+	// 	}
+	// }
+	// return false;
 }
 
 bool check_for_brick_collision(int x, int y, bool (*map)[COLS]) {
@@ -272,7 +276,7 @@ void plot_pixel(int x, int y, short int line_color) {
 }
 
 short int get_pixel(int x, int y) {
-	return *(short int *)(*(int *)0xFF203020 + (y << 10) + (x << 1))&0x0000FFFF;
+	return *(short int *)(*(int *)0xFF203020 + (y << 10) + (x << 1));
 }
 
 void draw_string(int x, int y, char str[]) {
