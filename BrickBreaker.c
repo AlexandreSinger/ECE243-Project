@@ -201,12 +201,6 @@ bool check_for_player_collision(int x, int y, const Player *player) {
 		return true;
 	}
 	return false;
-	// if (y > 240-player->height) {
-	// 	if (x > player->x - player->width/2 && x < player->x + player->width/2) {
-	// 		return true;
-	// 	}
-	// }
-	// return false;
 }
 
 bool check_for_brick_collision(int x, int y, bool (*map)[COLS]) {
