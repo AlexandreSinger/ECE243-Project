@@ -21,6 +21,7 @@ typedef struct Ball {
 	int width;
 	int dx;
 	int dy;
+	int lives;
 } Ball;
 
 bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
@@ -51,6 +52,7 @@ void plot_pixel(int x, int y, short int line_color);
 short int get_pixel(int x, int y);
 void draw_string(int x, int y, char str[]);
 void draw_char(int x, int y, char letter);
+void reset_ball(Ball *ball);
 
 int main(void)
 {
@@ -62,7 +64,7 @@ int main(void)
 	Player player = {159, 235, 40, 9, -1};
 	Player oldPlayer = player;	// old player used to erase from background
 	
-	Ball ball = {159, 200, 7, 0, 3};
+	Ball ball = {159, 200, 7, 1, 3, 3};
 	Ball oldBall = ball;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
@@ -135,11 +137,16 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 	ball->y = ball->y + ball->dy;
 	
 	// Check for wall collisions
+	if (ball->y + ball->width/2 >= 240) {
+		ball->lives = ball->lives - 1;
+		reset_ball(ball);
+		return;
+	}
 	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 >= 320) {
 		ball->x = ball->x - 2*ball->dx;
 		ball->dx = -1*ball->dx;
 		return;
-	} else if (ball->y - ball->width/2 < 15 || ball->y + ball->width/2 >= 240) {
+	} else if (ball->y - ball->width/2 < 15) {
 		ball->y = ball->y - 2* ball->dy;
 		ball->dy = -1*ball->dy;
 		return;
@@ -292,4 +299,11 @@ void draw_string(int x, int y, char str[]) {
 void draw_char(int x, int y, char letter) {
 	volatile int charBuffer = 0xc9000000;
 	*(char *)(charBuffer + (y << 7) + x) = letter;
+}
+
+void reset_ball(Ball *ball) {
+	ball->x = 159;
+	ball->y = 150;
+	ball->dx = 1;
+	ball->dy = 3;
 }
