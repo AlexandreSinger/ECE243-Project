@@ -38,7 +38,7 @@ bool brickBroke = false;
 int brokenBrick[2] = {0, 0};
 
 void draw_player(const Player *player, short int color);
-void update_player(Player *player);
+void update_player(Player *player, int key_value);
 void draw_ball(const Ball *ball, short int color);
 void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]);
 void draw_map(bool (*map)[COLS]);
@@ -55,6 +55,8 @@ void draw_char(int x, int y, char letter);
 int main(void)
 {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	volatile int * key_ptr = (int *)0xFF200050;
+	int key_value;
 
 	// create player at the bottom of the screen
 	Player player = {159, 235, 40, 9, -1};
@@ -89,8 +91,9 @@ int main(void)
 		}
 		
 		// update the player
+		key_value = *key_ptr;
 		oldPlayer = player;
-		update_player(&player);
+		update_player(&player, key_value);
 		
 		oldBall = ball;
 		update_ball(&ball, &player, map1);
@@ -234,7 +237,14 @@ void draw_player(const Player *player, short int color) {
 	}
 }
 
-void update_player(Player *player) {
+void update_player(Player *player, int key_value) {
+	if (key_value == 4) {
+		player->dx = 1;
+	} else if (key_value == 8) {
+		player->dx = -1;
+	} else {
+		player->dx = 0;
+	}
 	player->x = player->x + player->dx;
 	if (player->x - player->width/2 < 0 || player->x + player->width/2 > 320) {
 		player->x = player->x - player->dx;
