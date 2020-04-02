@@ -39,7 +39,7 @@ bool brickBroke = false;
 int brokenBrick[2] = {0, 0};
 
 void draw_player(const Player *player, short int color);
-void update_player(Player *player, int key_value);
+void update_player(Player *player, unsigned char byte);
 void draw_ball(const Ball *ball, short int color);
 void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]);
 void draw_map(bool (*map)[COLS]);
@@ -57,8 +57,11 @@ void reset_ball(Ball *ball);
 int main(void)
 {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	volatile int * key_ptr = (int *)0xFF200050;
-	int key_value;
+	//volatile int * key_ptr = (int *)0xFF200050;
+	volatile int * PS2_ptr = (int *) 0xFF200100;
+	int PS2_value;
+	unsigned char byte = 0;
+
 
 	// create player at the bottom of the screen
 	Player player = {159, 235, 40, 9, -1};
@@ -83,27 +86,33 @@ int main(void)
     while (1)
     {
         // erase the old player
+		PS2_value = *(PS2_ptr);
 		draw_player(&oldPlayer, 0);
 		draw_ball(&oldBall, 0);
 
 		// if a brick was broken in the last frame, break it in this frame as well
+		PS2_value = *(PS2_ptr);
 		if (brickBroke) {
 			break_brick(brokenBrick[0], brokenBrick[1], map1);
 			brickBroke = false;
 		}
 		
 		// update the player
-		key_value = *key_ptr;
+		PS2_value = *(PS2_ptr);
+		byte = PS2_value & 0xFF;
 		oldPlayer = player;
-		update_player(&player, key_value);
+		update_player(&player, byte);
 		
+		PS2_value = *(PS2_ptr);
 		oldBall = ball;
 		update_ball(&ball, &player, map1);
 
         // draw player
+		PS2_value = *(PS2_ptr);
 		draw_player(&player, 0xFFDF);
 		draw_ball(&ball, 0xFFFF);
 
+		PS2_value = *(PS2_ptr);
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
@@ -244,11 +253,11 @@ void draw_player(const Player *player, short int color) {
 	}
 }
 
-void update_player(Player *player, int key_value) {
-	if (key_value == 4) {
-		player->dx = 1;
-	} else if (key_value == 8) {
-		player->dx = -1;
+void update_player(Player *player, unsigned char byte) {
+	if (byte == 0x74) {
+		player->dx = 2;
+	} else if (byte == 0x6B) {
+		player->dx = -2;
 	} else {
 		player->dx = 0;
 	}
