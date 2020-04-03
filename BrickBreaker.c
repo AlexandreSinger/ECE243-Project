@@ -53,6 +53,7 @@ short int get_pixel(int x, int y);
 void draw_string(int x, int y, char str[]);
 void draw_char(int x, int y, char letter);
 void reset_ball(Ball *ball);
+unsigned char read_keyboard(volatile int *PS2_ptr);
 
 int main(void)
 {
@@ -86,36 +87,41 @@ int main(void)
     while (1)
     {
         // erase the old player
-		PS2_value = *(PS2_ptr);
+		PS2_value = read_keyboard(PS2_ptr);
 		draw_player(&oldPlayer, 0);
 		draw_ball(&oldBall, 0);
 
 		// if a brick was broken in the last frame, break it in this frame as well
-		PS2_value = *(PS2_ptr);
 		if (brickBroke) {
 			break_brick(brokenBrick[0], brokenBrick[1], map1);
 			brickBroke = false;
 		}
 		
 		// update the player
-		PS2_value = *(PS2_ptr);
 		byte = PS2_value & 0xFF;
 		oldPlayer = player;
 		update_player(&player, byte);
 		
-		PS2_value = *(PS2_ptr);
 		oldBall = ball;
 		update_ball(&ball, &player, map1);
 
         // draw player
-		PS2_value = *(PS2_ptr);
 		draw_player(&player, 0xFFDF);
 		draw_ball(&ball, 0xFFFF);
 
-		PS2_value = *(PS2_ptr);
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
+}
+
+unsigned char read_keyboard(volatile int *PS2_ptr) {
+	int data;
+	unsigned char byte;
+	do {
+		data = *PS2_ptr;
+		byte = data & 0xFF;
+	} while (data & 0x8000);
+	return byte;
 }
 
 void draw_map(bool (*map)[COLS]) {
