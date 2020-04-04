@@ -54,6 +54,15 @@ void draw_string(int x, int y, char str[]);
 void draw_char(int x, int y, char letter);
 void reset_ball(Ball *ball);
 void read_keyboard(unsigned char *pressedKey);
+void draw_level(volatile int *pixel_ctrl_ptr);
+
+typedef enum {
+	title,
+	level,
+	gameover
+}  gamestate;
+
+gamestate state = title;
 
 int main(void)
 {
@@ -70,44 +79,75 @@ int main(void)
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     /* now, swap the front/back buffers, to set the front buffer location */
     wait_for_vsync();
-    /* initialize a pointer to the pixel buffer, used by drawing functions */
+
     pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
-	draw_map(map1);
+	clear_screen();
     *(pixel_ctrl_ptr + 1) = 0xC8000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen();
-	draw_map(map1);
+
+	draw_string(2,2,"                                                                            ");
+	draw_string(35, 30, "          ");
+	draw_string(25, 30, "Press the space bar to begin!");
+	
 
 	unsigned char pressedKey = 0;
 	
     while (1)
     {
-        // erase the old player
-		read_keyboard(&pressedKey);
-		draw_player(&oldPlayer, 0);
-		draw_ball(&oldBall, 0);
+		switch (state) {
+			case title:
+				read_keyboard(&pressedKey);
+				if (pressedKey == 0x29) {
+					draw_level(pixel_ctrl_ptr);
+					state = level;
+				}
+				break;
+			case level:
+				// erase the old player
+				read_keyboard(&pressedKey);
+				draw_player(&oldPlayer, 0);
+				draw_ball(&oldBall, 0);
 
-		// if a brick was broken in the last frame, break it in this frame as well
-		if (brickBroke) {
-			break_brick(brokenBrick[0], brokenBrick[1], map1);
-			brickBroke = false;
+				// if a brick was broken in the last frame, break it in this frame as well
+				if (brickBroke) {
+					break_brick(brokenBrick[0], brokenBrick[1], map1);
+					brickBroke = false;
+				}
+				
+				// update the player
+				oldPlayer = player;
+				update_player(&player, pressedKey);
+				
+				oldBall = ball;
+				update_ball(&ball, &player, map1);
+
+				// draw player
+				draw_player(&player, 0xFFDF);
+				draw_ball(&ball, 0xFFFF);
+
+				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+				break;
+			case gameover:
+				clear_screen();
+				draw_string(2,2,"                                                                            ");
+				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+				break;
 		}
-		
-		// update the player
-		oldPlayer = player;
-		update_player(&player, pressedKey);
-		
-		oldBall = ball;
-		update_ball(&ball, &player, map1);
-
-        // draw player
-		draw_player(&player, 0xFFDF);
-		draw_ball(&ball, 0xFFFF);
-
-        wait_for_vsync(); // swap front and back buffers on VGA vertical sync
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
+}
+
+void draw_level(volatile int *pixel_ctrl_ptr) {
+	draw_string(25, 30, "                             ");
+	draw_string(2,2,"Score: You suck             Lives: you have none    High score: Hah you wish");
+	draw_map(map1);
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	draw_map(map1);
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 }
 
 void read_keyboard(unsigned char *pressedKey) {
@@ -121,6 +161,7 @@ void read_keyboard(unsigned char *pressedKey) {
 }
 
 void draw_map(bool (*map)[COLS]) {
+	clear_screen();
 	for (int i = 0; i < ROWS; i++) {
 		for (int j = 0; j < COLS; j++) {
 			if (map[i][j]) {
@@ -149,6 +190,11 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 	
 	// Check for wall collisions
 	if (ball->y + ball->width/2 >= 240) {
+		if (ball->lives == 0) {
+			state = gameover;
+			draw_string(35, 30, "Game Over!");
+			return;
+		}
 		ball->lives = ball->lives - 1;
 		reset_ball(ball);
 		return;
@@ -169,7 +215,9 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 			ball->y = ball->y - 2* ball->dy;
 			ball->dy = -1*ball->dy;
 			if (player->dx != 0) {
-				ball->dx = player->dx;
+				if (player->dx * ball->dx < 0) {
+					ball->dx = -1*ball->dx;
+				}
 			}
 			return;
 	}
@@ -284,7 +332,6 @@ void wait_for_vsync() {
 
 // code for clearing the screen
 void clear_screen() {
-	draw_string(2,2,"Score: You suck             Lives: you have none    High score: Hah you wish");
 	for (int i = 0; i < 320; i++) {
 		for (int j = 0; j < 240; j++) {
 			plot_pixel(i, j, 0);
