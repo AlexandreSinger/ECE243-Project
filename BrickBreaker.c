@@ -55,14 +55,16 @@ void draw_char(int x, int y, char letter);
 void reset_ball(Ball *ball);
 void read_keyboard(unsigned char *pressedKey);
 void draw_level(volatile int *pixel_ctrl_ptr);
+void clear_all_text();
 
 typedef enum {
 	title,
 	level,
+	pause,
 	gameover
 }  gamestate;
 
-gamestate state = title;
+gamestate state;
 
 int main(void)
 {
@@ -86,8 +88,9 @@ int main(void)
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen();
 
-	draw_string(2,2,"                                                                            ");
-	draw_string(35, 30, "          ");
+	state = title;
+
+	clear_all_text();
 	draw_string(25, 30, "Press the space bar to begin!");
 	
 
@@ -128,6 +131,19 @@ int main(void)
 
 				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 				pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+				if (pressedKey == 0x5A) {
+					draw_string(37, 30, "paused");
+					draw_string(28, 32, "press space to continue");
+					state = pause;
+				}
+				break;
+			case pause:
+				read_keyboard(&pressedKey);
+				if (pressedKey == 0x29) {
+					state = level;
+					draw_string(37, 30, "      ");
+					draw_string(28, 32, "                       ");
+				}
 				break;
 			case gameover:
 				clear_screen();
@@ -357,6 +373,14 @@ void draw_string(int x, int y, char str[]) {
 void draw_char(int x, int y, char letter) {
 	volatile int charBuffer = 0xc9000000;
 	*(char *)(charBuffer + (y << 7) + x) = letter;
+}
+
+void clear_all_text() {
+	for (int x = 0; x < 80; x++) {
+		for (int y = 0; y < 60; y++) {
+			draw_char(x, y, ' ');
+		}
+	}
 }
 
 void reset_ball(Ball *ball) {
