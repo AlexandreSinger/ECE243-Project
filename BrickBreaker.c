@@ -24,7 +24,15 @@ typedef struct Ball {
 	int lives;
     int score;
 	short int last_touched;
+	int bricks_broken;
 } Ball;
+
+typedef struct PowerUp {
+	int x;
+	int y;
+	int width;
+	bool active;
+} PowerUp;
 
 bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 				  		 {1,1,0,1,0,1,1},
@@ -36,6 +44,8 @@ bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 				  		 {1,1,0,1,1,1,1}};
 
 short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
+
+int numPowerUps = 0;
 
 bool brickBroke = false;
 int brokenBrick[2] = {0, 0};
@@ -58,8 +68,10 @@ void reset_ball(Ball *ball);
 void read_keyboard(unsigned char *pressedKey);
 void draw_level(volatile int *pixel_ctrl_ptr);
 void clear_all_text();
-void write_status(int score, int lives, int highScore);
+void write_status(int score, int lives);
 int score_add(short int colour);
+void update_power_up(PowerUp *powerUp, Player *player);
+void draw_power_ups(PowerUp powerUps[5], short int colour, int number);
 
 typedef enum {
 	title,
@@ -78,8 +90,12 @@ int main(void)
 	Player player = {159, 235, 40, 9, -1};
 	Player oldPlayer = player;	// old player used to erase from background
 	
-	Ball ball = {159, 200, 7, 1, 3, 3, 0, 0xFFFF};
+	Ball ball = {159, 200, 7, 1, 3, 3, 0, 0xFFFF, 0};
 	Ball oldBall = ball;
+
+	PowerUp powerUps[5] = {{0,0,0,0,false}, {0,0,0,0,false}, {0,0,0,0,false}, {0,0,0,0,false}, {0,0,0,0,false}};
+	PowerUp oldPowerUps[5];
+	int oldNumber = 0;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
@@ -114,13 +130,26 @@ int main(void)
 				// erase the old player
 				read_keyboard(&pressedKey);
 				draw_player(&oldPlayer, 0);
+				if(oldNumber > 0) {
+					draw_power_ups(oldPowerUps, 0, oldNumber);
+				}
 				draw_ball(&oldBall, 0);
+
 
 				// if a brick was broken in the last frame, break it in this frame as well
 				if (brickBroke) {
 					break_brick(brokenBrick[0], brokenBrick[1], map1);
 					ball.score += score_add(ball.last_touched);
 					brickBroke = false;
+				}
+
+				if (ball.bricks_broken == 14) {
+					powerUps[numPowerUps].active = true;
+					powerUps[numPowerUps].x = ball.x;
+					powerUps[numPowerUps].y = ball.y;
+					powerUps[numPowerUps].width = 7;
+					numPowerUps++;
+					ball.bricks_broken = ball.bricks_broken-14;
 				}
 				
 				// update the player
@@ -130,11 +159,24 @@ int main(void)
 				oldBall = ball;
 				update_ball(&ball, &player, map1);
 
+				oldNumber = numPowerUps;
+				for (int i = 0; i < oldNumber; i++) {
+					oldPowerUps[i] = powerUps[i];
+					update_power_up(&powerUps[i], &player);
+					if (powerUps[i].active == false) {
+						draw_power_ups(&powerUps[i], 0x0000, 1);
+						numPowerUps--;
+					}
+				}
+
 				// draw player
 				draw_player(&player, 0xFFDF);
+
+				draw_power_ups(powerUps, 0xF81F, numPowerUps);
+
 				draw_ball(&ball, 0xFFFF);
 
-                write_status(ball.score, ball.lives, 0);
+                write_status(ball.score, ball.lives);
 
 				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 				pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
@@ -305,6 +347,7 @@ bool check_for_brick_collision(int x, int y, Ball *ball, bool (*map)[COLS]) {
 		brokenBrick[0] = rowIndex;
 		brokenBrick[1] = colIndex;
 		ball->last_touched = collidingPixel;
+		ball->bricks_broken += 1;
 		return true;
 	}
 	return false;
@@ -398,7 +441,7 @@ void reset_ball(Ball *ball) {
 	ball->dy = 3;
 }
 
-void write_status(int score, int lives, int highScore) {
+void write_status(int score, int lives) {
     char scoreString[6];
     char scoreTitle[8] = "Score: ";
     itoa(score, scoreString, 10);
@@ -427,5 +470,26 @@ int score_add(short int colour) {
 		return 10;
 	} else {
 		return 0;
+	}
+}
+
+void update_power_up(PowerUp *powerUp, Player *player) {
+	if (check_for_player_collision(powerUp->x - powerUp->width/2, powerUp->y + powerUp->width/2, player) ||
+		check_for_player_collision(powerUp->x + powerUp->width/2, powerUp->y + powerUp->width/2, player)) {
+			powerUp->active = false;
+			//activate_power_up(player);
+	}else if (powerUp->y + powerUp->width/2 > 239) {
+		powerUp->active = false;
+	} else {
+		powerUp->y = powerUp->y + 1;
+	}
+}
+void draw_power_ups(PowerUp powerUps[5], short int colour, int number) {
+	for (int i = 0; i < number; i++) {	
+		for (int j = powerUps[i].x - powerUps[i].width/2; j < powerUps[i].x + powerUps[i].width/2; j++) {
+			for (int k = powerUps[i].y - powerUps[i].width/2; k < powerUps[i].y + powerUps[i].width/2; k++) {
+				plot_pixel(j, k, colour);
+			}
+		}
 	}
 }
