@@ -72,11 +72,13 @@ void write_status(int score, int lives);
 int score_add(short int colour);
 void update_power_up(PowerUp *powerUp, Player *player);
 void draw_power_ups(PowerUp powerUps[5], short int colour, int number);
+bool all_bricks_broken(bool (*map)[COLS]);
 
 typedef enum {
 	title,
 	level,
 	pause,
+	winner,
 	gameover
 }  gamestate;
 
@@ -141,6 +143,10 @@ int main(void)
 					break_brick(brokenBrick[0], brokenBrick[1], map1);
 					ball.score += score_add(ball.last_touched);
 					brickBroke = false;
+					if (all_bricks_broken(map1)) {
+						state = winner;
+						break;
+					}
 				}
 
 				if (ball.bricks_broken == 14) {
@@ -193,6 +199,13 @@ int main(void)
 					draw_string(37, 30, "      ");
 					draw_string(28, 32, "                       ");
 				}
+				break;
+			case winner:
+				clear_screen();
+				draw_string(2,2,"                                                                            ");
+				draw_string(35, 30, "Winner!");
+                wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 				break;
 			case gameover:
 				clear_screen();
@@ -484,6 +497,7 @@ void update_power_up(PowerUp *powerUp, Player *player) {
 		powerUp->y = powerUp->y + 1;
 	}
 }
+
 void draw_power_ups(PowerUp powerUps[5], short int colour, int number) {
 	for (int i = 0; i < number; i++) {	
 		for (int j = powerUps[i].x - powerUps[i].width/2; j < powerUps[i].x + powerUps[i].width/2; j++) {
@@ -492,4 +506,15 @@ void draw_power_ups(PowerUp powerUps[5], short int colour, int number) {
 			}
 		}
 	}
+}
+
+bool all_bricks_broken(bool (*map)[COLS]) {
+	for (int i = 0; i < ROWS; i++) {
+		for (int j = 0; j < COLS; j++) {
+			if (map[i][j]) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
