@@ -218,9 +218,6 @@ int main(void)
 				if(oldNumber > 0) {
 					draw_power_ups(oldPowerUps, 0, oldNumber);
 				}
-				if(player.powerUp == true) {
-					remove_power_up(&player);
-				}
 				oldNumber = numPowerUps;
 				for (int i = 0; i < oldNumber; i++) {
 					oldPowerUps[i] = powerUps[i];
@@ -239,6 +236,9 @@ int main(void)
 				ball.x = player.x;
 
 				draw_player(&player, 0xFFDF);
+				if(player.powerUp == true) {
+					remove_power_up(&player);
+				}
 				draw_ball(&oldBall, 0);
 
 				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
