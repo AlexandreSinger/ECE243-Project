@@ -6,7 +6,7 @@ The simulator used is called cpulator found here: https://cpulator.01xz.net/?sys
 
 ## Instructions
 
-The goal of the game is to earn as many points as you can by breaking bricks. Bricks can be broken by deflecting a ball into the bricks using a paddle. As you play the game, powerups may fall from broken bricks which will give you an advantage for a small period of time. The game is won when all bricks are broken. You are given three lives, and if the ball misses your paddle you will be able to respawn but you will lose a life. If you miss the ball with no lives left you will lose.
+The goal of the game is to earn as many points as you can by breaking bricks. Bricks can be broken by deflecting a ball into the bricks using a paddle. As you play the game, powerups may fall from broken bricks which will increase the size of your paddle for a small period of time (you can stack multiple powerups at once). The game is won when all bricks are broken. You are given three lives, and if the ball misses your paddle you will be able to respawn but you will lose a life. If you miss the ball with no lives left you will lose.
 
 ### Running The Game
 Start by going to cpulator and changing the language from ARMv7 (default) to C (experimental). 
