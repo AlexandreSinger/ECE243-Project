@@ -83,6 +83,7 @@ typedef enum {
 	title,
 	level,
 	pause,
+	respawn,
 	winner,
 	gameover
 }  gamestate;
@@ -213,6 +214,40 @@ int main(void)
 					draw_string(28, 32, "                       ");
 				}
 				break;
+			case respawn:
+				if(oldNumber > 0) {
+					draw_power_ups(oldPowerUps, 0, oldNumber);
+				}
+				if(player.powerUp == true) {
+					remove_power_up(&player);
+				}
+				oldNumber = numPowerUps;
+				for (int i = 0; i < oldNumber; i++) {
+					oldPowerUps[i] = powerUps[i];
+					update_power_up(&powerUps[i], &player);
+						draw_power_ups(&powerUps[i], 0x0000, 1);
+						numPowerUps--;
+				}
+				read_keyboard(&pressedKey);
+				
+				draw_player(&oldPlayer, 0);
+				draw_ball(&oldBall, 0);
+
+				oldPlayer = player;
+				update_player(&player, pressedKey);
+				oldBall = ball;
+				ball.x = player.x;
+
+				draw_player(&player, 0xFFDF);
+				draw_ball(&oldBall, 0);
+
+				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+				if (pressedKey == 0x29) {
+					state = level;
+					draw_string(28, 32, "                       ");
+				}
+				break;
 			case winner:
 				clear_screen();
 				draw_string(2,2,"                                                                            ");
@@ -288,6 +323,8 @@ void update_ball(Ball *ball, const Player *player, bool (*map)[COLS]) {
 		}
 		ball->lives = ball->lives - 1;
 		reset_ball(ball);
+		state = respawn;
+		draw_string(28, 32, "press space to respawn");
 		return;
 	}
 	if (ball->x - ball->width/2 < 0 || ball->x + ball->width/2 >= 320) {
@@ -462,9 +499,9 @@ void clear_all_text() {
 
 void reset_ball(Ball *ball) {
 	ball->x = 159;
-	ball->y = 150;
+	ball->y = 215;
 	ball->dx = 1;
-	ball->dy = 3;
+	ball->dy = -3;
 }
 
 void write_status(int score, int lives) {
