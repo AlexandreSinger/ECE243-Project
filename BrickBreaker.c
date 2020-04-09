@@ -13,6 +13,7 @@ typedef struct Player {
 	int width;
 	int height;
 	int dx;
+	bool powerUp;
 } Player;
 
 typedef struct Ball {
@@ -46,6 +47,7 @@ bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
 
 int numPowerUps = 0;
+int increase = 10;
 
 bool brickBroke = false;
 int brokenBrick[2] = {0, 0};
@@ -73,6 +75,8 @@ int score_add(short int colour);
 void update_power_up(PowerUp *powerUp, Player *player);
 void draw_power_ups(PowerUp powerUps[5], short int colour, int number);
 bool all_bricks_broken(bool (*map)[COLS]);
+void activate_power_up(Player *player);
+void remove_power_up(Player *player);
 
 typedef enum {
 	title,
@@ -87,9 +91,10 @@ gamestate state;
 int main(void)
 {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	volatile int *interrupt = (int *)0xFFFEC60C;
 	
 	// create player at the bottom of the screen
-	Player player = {159, 235, 40, 9, -1};
+	Player player = {159, 235, 40, 9, -1, false};
 	Player oldPlayer = player;	// old player used to erase from background
 	
 	Ball ball = {159, 200, 7, 1, 3, 3, 0, 0xFFFF, 0};
@@ -149,17 +154,22 @@ int main(void)
 					}
 				}
 
-				if (ball.bricks_broken == 14) {
+				if (ball.bricks_broken == 5) {
 					powerUps[numPowerUps].active = true;
 					powerUps[numPowerUps].x = ball.x;
 					powerUps[numPowerUps].y = ball.y;
 					powerUps[numPowerUps].width = 7;
 					numPowerUps++;
-					ball.bricks_broken = ball.bricks_broken-14;
+					ball.bricks_broken = ball.bricks_broken-5;
 				}
-				
+
 				// update the player
 				oldPlayer = player;
+				if(player.powerUp == true) {
+					if(*interrupt == 1) {
+						remove_power_up(&player);
+					}
+				}
 				update_player(&player, pressedKey);
 				
 				oldBall = ball;
@@ -352,7 +362,7 @@ bool check_for_player_collision(int x, int y, const Player *player) {
 
 bool check_for_brick_collision(int x, int y, Ball *ball, bool (*map)[COLS]) {
 	short int collidingPixel = get_pixel(x,y);
-	if (collidingPixel != (short int)0xFFFF && collidingPixel != (short int)0x0) {
+	if (collidingPixel != (short int)0xFFFF && collidingPixel != (short int)0x0 && collidingPixel != (short int)0xF81F) {
 		int rowIndex = y/15 - 1;
 		int colIndex = x/45;
 		break_brick(rowIndex, colIndex, map);
@@ -490,7 +500,7 @@ void update_power_up(PowerUp *powerUp, Player *player) {
 	if (check_for_player_collision(powerUp->x - powerUp->width/2, powerUp->y + powerUp->width/2, player) ||
 		check_for_player_collision(powerUp->x + powerUp->width/2, powerUp->y + powerUp->width/2, player)) {
 			powerUp->active = false;
-			//activate_power_up(player);
+			activate_power_up(player);
 	}else if (powerUp->y + powerUp->width/2 > 239) {
 		powerUp->active = false;
 	} else {
@@ -517,4 +527,33 @@ bool all_bricks_broken(bool (*map)[COLS]) {
 		}
 	}
 	return true;
+}
+
+void activate_power_up(Player *player) {
+	volatile int *timer_addr = (int *)0xFFFEC600;
+	volatile int *interrupt = (int *)0xFFFEC60C;
+	volatile int *enable = (int *)0xFFFEC608;
+	int timer_time = 0x77359400;
+
+	if(player->x - (player->width + increase)/2 < 0) {
+		player->x = (player->width + increase)/2;
+		player->dx = 0;
+	} else if (player->x + (player->width + increase)/2 > 319) {
+		player->x = 319 - (player->width + increase)/2;
+		player->dx = 0;
+	}
+	player->width += increase;
+
+	*timer_addr = timer_time;
+	
+	*interrupt = 0x1;
+	*enable = 0x1;
+
+	player->powerUp = true;
+}
+
+void remove_power_up(Player *player) {
+	draw_player(player, 0);
+	player->width -= increase;
+	player->powerUp = false;
 }
