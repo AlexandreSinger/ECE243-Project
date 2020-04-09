@@ -512,10 +512,16 @@ void update_power_up(PowerUp *powerUp, Player *player) {
 }
 
 void draw_power_ups(PowerUp powerUps[5], short int colour, int number) {
+	short int getColour; 
 	for (int i = 0; i < number; i++) {	
 		for (int j = powerUps[i].x - powerUps[i].width/2; j < powerUps[i].x + powerUps[i].width/2; j++) {
 			for (int k = powerUps[i].y - powerUps[i].width/2; k < powerUps[i].y + powerUps[i].width/2; k++) {
-				plot_pixel(j, k, colour);
+				getColour = get_pixel(j,k);
+				if(getColour == rowColors[0] || getColour == rowColors[1] || getColour == rowColors[2] || getColour == rowColors[3]) {
+					break;
+				} else {
+					plot_pixel(j, k, colour);
+				}
 			}
 		}
 	}
