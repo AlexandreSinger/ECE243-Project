@@ -42,7 +42,7 @@ bool map1[ROWS][COLS] = {{1,1,1,1,1,1,1},
 						 {1,0,1,1,1,0,1},
 				  		 {1,0,0,0,0,0,1},
 				  		 {1,1,0,0,0,1,1},
-				  		 {1,1,0,1,1,1,1}};
+				  		 {1,1,1,1,1,1,1}};
 
 short int rowColors[] = {0xF800, 0xFFE0, 0x07E0, 0x001F};
 
@@ -158,13 +158,13 @@ int main(void)
 					}
 				}
 
-				if (ball.bricks_broken == 5) {
+				if (ball.bricks_broken >= 5) {
 					powerUps[numPowerUps].active = true;
 					powerUps[numPowerUps].x = ball.x;
 					powerUps[numPowerUps].y = ball.y;
 					powerUps[numPowerUps].width = 7;
 					numPowerUps++;
-					ball.bricks_broken = ball.bricks_broken-5;
+					ball.bricks_broken = 0;
 				}
 
 				// update the player
@@ -600,7 +600,7 @@ void activate_power_up(Player *player) {
 
 void remove_power_up(Player *player) {
 	draw_player(player, 0);
-	player->width -= increase;
+	player->width = 40;
 	player->powerUp = false;
 }
 
